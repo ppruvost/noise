@@ -1,39 +1,45 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Analyse mire – Option B</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Analyse de mire – Mode Automatique</title>
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <style>
-    body { font-family: Arial; margin: 0; padding: 10px; }
-    #video { width: 100%; max-width: 500px; background: #000; }
-    .controls button { padding: 10px; margin: 5px; }
-    .disabled { opacity: 0.4; pointer-events: none; }
-  </style>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="style.css" />
 </head>
 
+
 <body>
-  <h2>Analyse de mire – Accélération & Angle</h2>
+<h2>Analyse de mire – Accélération & Angle (Auto)</h2>
 
-  <video id="video" autoplay playsinline></video>
 
-  <div class="controls">
-    <button id="btnStartCam">Démarrer caméra</button>
-    <button id="btnInstant" class="btn-detection">Détection instantanée</button>
-    <button id="btnAutoCalib" class="btn-detection">Auto‑calibration + angle</button>
-    <button id="btnCSV">Exporter CSV</button>
-  </div>
+<video id="video" autoplay playsinline></video>
 
-  <div id="infoAngle">Angle : --.-°</div>
 
-  <canvas id="chartXYAngle" width="900" height="350"></canvas>
+<div class="controls">
+<button id="btnStartCam">Initialiser webcam</button>
+<button id="btnStopRec" disabled>Arrêter l’enregistrement</button>
+</div>
 
-  <!-- Fichiers JS -->
-  <script src="webcam.js"></script>
-  <script src="script.js"></script>
+
+<div id="infos">
+<div>Échantillons : <span id="sampleCount">0</span></div>
+<div>a estimée : <span id="aEst">—</span> m/s²</div>
+<div>Angle : <span id="angleEst">—</span>°</div>
+</div>
+
+
+<h3>Données & Graphiques</h3>
+<canvas id="chartPos" width="900" height="300"></canvas>
+<canvas id="chartVit" width="900" height="300"></canvas>
+<canvas id="chartReg" width="900" height="300"></canvas>
+
+
+<!-- Fichiers JS -->
+<script src="webcam.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
