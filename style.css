@@ -1,71 +1,305 @@
-/* style.css — Mise en forme propre */
+/****************************************************
+ * script.js — Détection ellipse + courbes + CSV
+ ****************************************************/
 
+/* -------------------------------------------------
+   CONFIG
+------------------------------------------------- */
+const REAL_DIAM_M = 0.15;          // diamètre physique de l'objet (m)
+const MIN_PIXELS_FOR_DETECT = 40;  // taille minimale
+const SMOOTH_FACTOR = 0.4;         // filtrage simple
 
-body {
-font-family: Arial, sans-serif;
-margin: 0;
-padding: 10px;
-background: #f5f5f5;
-color: #222;
+/* -------------------------------------------------
+   VARIABLES GLOBALES
+------------------------------------------------- */
+let video = null;
+let canvasProcess = null;
+let ctxP = null;
+
+let streaming = false;
+let processing = false;
+
+let startTime = 0;
+let lastX = null;
+
+let dataT = [];
+let dataX = [];
+let dataV = [];
+
+/* -------------------------------------------------
+   DEMARRAGE WEBCAM
+------------------------------------------------- */
+async function startCam() {
+    video = document.getElementById("video");
+    canvasProcess = document.getElementById("canvasProcess");
+    ctxP = canvasProcess.getContext("2d");
+
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+
+    video.onloadedmetadata = () => {
+        video.play();
+        streaming = true;
+    };
 }
 
+/* -------------------------------------------------
+   LANCER ACQUISITION
+------------------------------------------------- */
+function startAcq() {
+    if (!streaming) return;
 
-h2, h3 {
-margin-top: 10px;
-padding: 10px 0;
+    dataT = [];
+    dataX = [];
+    dataV = [];
+
+    startTime = performance.now();
+    processing = true;
+
+    requestAnimationFrame(loop);
 }
 
-
-#video {
-width: 100%;
-max-width: 500px;
-background: #000;
-border-radius: 6px;
-display: block;
-margin-bottom: 15px;
+/* -------------------------------------------------
+   STOP ACQUISITION
+------------------------------------------------- */
+function stopAcq() {
+    processing = false;
 }
 
+/* -------------------------------------------------
+   BOUCLE DE TRAITEMENT
+------------------------------------------------- */
+function loop() {
+    if (!processing) return;
 
-.controls {
-margin-bottom: 15px;
+    canvasProcess.width = video.videoWidth;
+    canvasProcess.height = video.videoHeight;
+
+    ctxP.drawImage(video, 0, 0);
+
+    detectEllipse();
+
+    requestAnimationFrame(loop);
 }
 
+/* -------------------------------------------------
+   DETECTION ELLIPSE (OpenCV)
+------------------------------------------------- */
+function detectEllipse() {
+    let src = cv.imread(canvasProcess);
+    let gray = new cv.Mat();
+    let blur = new cv.Mat();
+    let thresh = new cv.Mat();
 
-.controls button {
-padding: 10px 15px;
-margin: 5px;
-font-size: 15px;
-border: none;
-border-radius: 6px;
-cursor: pointer;
-background: #1976d2;
-color: white;
-transition: 0.2s;
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
+    cv.threshold(blur, thresh, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+
+    let contours = new cv.MatVector();
+    let hierarchy = new cv.Mat();
+
+    cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    let bestEllipse = null;
+    let bestArea = 0;
+
+    for (let i = 0; i < contours.size(); i++) {
+        let cnt = contours.get(i);
+
+        if (cnt.rows < 20) continue;
+
+        let area = cv.contourArea(cnt);
+        if (area > bestArea) {
+            try {
+                let ellipse = cv.fitEllipse(cnt);
+                if (ellipse.size.width > MIN_PIXELS_FOR_DETECT && ellipse.size.height > MIN_PIXELS_FOR_DETECT) {
+                    bestArea = area;
+                    bestEllipse = ellipse;
+                }
+            } catch (e) {
+                /* fitEllipse peut échouer */
+            }
+        }
+    }
+
+    if (bestEllipse) {
+        handleEllipse(bestEllipse);
+    }
+
+    src.delete(); gray.delete(); blur.delete(); thresh.delete();
+    contours.delete(); hierarchy.delete();
 }
 
+/* -------------------------------------------------
+   GESTION D’UNE ELLIPSE DÉTECTÉE
+------------------------------------------------- */
+function handleEllipse(el) {
+    const t = (performance.now() - startTime) / 1000;
 
-.controls button:hover {
-background: #125a9c;
+    // position de l'objet = centre ellipse
+    let x_px = el.center.x;
+
+    // conversion pixel -> mètres
+    const pix_diam = (el.size.width + el.size.height) / 2;
+    const px2m = REAL_DIAM_M / pix_diam;
+    const x_m = x_px * px2m;
+
+    // smoothing léger
+    let x_smooth = (lastX === null) ? x_m : lastX * (1 - SMOOTH_FACTOR) + x_m * SMOOTH_FACTOR;
+    lastX = x_smooth;
+
+    // vitesse (différence)
+    let v = 0;
+    if (dataX.length > 0) {
+        let dx = x_smooth - dataX[dataX.length - 1];
+        let dt = t - dataT[dataT.length - 1];
+        if (dt > 0) v = dx / dt;
+    }
+
+    // stockage
+    dataT.push(t);
+    dataX.push(x_smooth);
+    dataV.push(v);
+
+    updateInfos(x_smooth, v);
+
+    updateCharts();
 }
 
-
-.controls button:disabled {
-opacity: 0.5;
-pointer-events: none;
+/* -------------------------------------------------
+   INFOS EN DIRECT
+------------------------------------------------- */
+function updateInfos(x, v) {
+    document.getElementById("infos").innerHTML =
+        `x = ${x.toFixed(3)} m — v = ${v.toFixed(3)} m/s`;
 }
 
+/* -------------------------------------------------
+   CHARTS
+------------------------------------------------- */
+let chartPos = null;
+let chartVit = null;
+let chartReg = null;
 
-#infos {
-font-size: 17px;
-margin-bottom: 10px;
-font-weight: bold;
+function updateCharts() {
+    if (!chartPos) initCharts();
+
+    chartPos.data.labels = dataT;
+    chartPos.data.datasets[0].data = dataX;
+    chartPos.update();
+
+    chartVit.data.labels = dataT;
+    chartVit.data.datasets[0].data = dataV;
+    chartVit.update();
+
+    computeRegression();
 }
 
+/* -------------------------------------------------
+   INIT CHARTS
+------------------------------------------------- */
+function initCharts() {
 
-#chartPos, #chartVit, #chartReg {
-background: white;
-border: 1px solid #ccc;
-border-radius: 6px;
-padding: 10px;
-margin-top: 20px;
+    chartPos = new Chart(document.getElementById("chartPos"), {
+        type: "line",
+        data: {
+            labels: [],
+            datasets: [{
+                label: "Position X (m)",
+                data: [],
+                borderColor: "red",
+                fill: false,
+            }]
+        }
+    });
+
+    chartVit = new Chart(document.getElementById("chartVit"), {
+        type: "line",
+        data: {
+            labels: [],
+            datasets: [{
+                label: "Vitesse (m/s)",
+                data: [],
+                borderColor: "blue",
+                fill: false,
+            }]
+        }
+    });
+
+    chartReg = new Chart(document.getElementById("chartReg"), {
+        type: "line",
+        data: {
+            labels: [],
+            datasets: [{
+                label: "X(t)",
+                data: [],
+                borderColor: "green",
+                fill: false,
+            }, {
+                label: "Régression",
+                data: [],
+                borderColor: "black",
+                borderDash: [5, 5],
+                fill: false,
+            }]
+        }
+    });
 }
+
+/* -------------------------------------------------
+   RÉGRESSION LINÉAIRE
+------------------------------------------------- */
+function computeRegression() {
+    if (dataT.length < 3) return;
+
+    const n = dataT.length;
+    let sumX = 0, sumT = 0, sumTT = 0, sumTX = 0;
+
+    for (let i = 0; i < n; i++) {
+        let t = dataT[i];
+        let x = dataX[i];
+        sumT += t;
+        sumX += x;
+        sumTT += t * t;
+        sumTX += t * x;
+    }
+
+    const a = (n * sumTX - sumT * sumX) / (n * sumTT - sumT * sumT); // pente
+    const b = (sumX - a * sumT) / n;
+
+    let reg = dataT.map(t => a * t + b);
+
+    chartReg.data.labels = dataT;
+    chartReg.data.datasets[0].data = dataX;
+    chartReg.data.datasets[1].data = reg;
+    chartReg.update();
+}
+
+/* -------------------------------------------------
+   EXPORT CSV
+------------------------------------------------- */
+function exportCSV() {
+    let lines = "t(s);x(m);v(m/s)\n";
+    for (let i = 0; i < dataT.length; i++) {
+        lines += `${dataT[i]};${dataX[i]};${dataV[i]}\n`;
+    }
+
+    const blob = new Blob([lines], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "exAO_donnees.csv";
+    a.click();
+}
+
+/* -------------------------------------------------
+   LIEN BOUTONS
+------------------------------------------------- */
+window.onload = () => {
+    startCam();
+
+    document.getElementById("startBtn").onclick = startAcq;
+    document.getElementById("stopBtn").onclick = stopAcq;
+    document.getElementById("csvBtn").onclick = exportCSV;
+};
