@@ -9,14 +9,29 @@
 <body>
     <div class="container">
         <h1>Sonomètre</h1>
+
+        <!-- Barre du son -->
         <div class="meter">
             <div class="bar" id="soundBar"></div>
         </div>
-        <p id="soundLevel">Niveau sonore : <span id="value">0</span> dB</p>
+
+        <!-- Valeur numérique -->
+        <p id="soundLevel">Niveau sonore (moyenne 30s) : <span id="value">0</span></p>
+
+        <!-- Emoji selon niveau -->
+        <div id="emoji" style="font-size: 60px; margin-top: 10px;">😊</div>
+
+        <!-- Boutons -->
         <button id="startButton">Démarrer</button>
         <button id="stopButton">Arrêter</button>
     </div>
-    <audio id="alarmSound" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" preload="auto"></audio>
+
+    <!-- Son d'alarme -->
+    <audio id="alarmSound"
+        src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3"
+        preload="auto"></audio>
+
+    <!-- Script principal -->
     <script src="script.js"></script>
 </body>
 </html>
