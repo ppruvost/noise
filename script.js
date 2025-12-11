@@ -10,13 +10,13 @@ let analyser;
 let microphone;
 let isRunning = false;
 
-// Historique des valeurs sonores (dernières 30s)
+// Historique des valeurs sonores (moyenne sur 10 secondes)
 let soundHistory = [];
-const HISTORY_DURATION = 30;
-const FPS_APPROX = 60;
+const HISTORY_DURATION = 10; // 10s
+const FPS_APPROX = 40;       // ~40 mesures par seconde
 const MAX_HISTORY = HISTORY_DURATION * FPS_APPROX;
 
-// --- DEMARRER ---
+// --- DÉMARRER ---
 startButton.addEventListener("click", async () => {
     if (isRunning) return;
 
@@ -36,7 +36,7 @@ startButton.addEventListener("click", async () => {
     }
 });
 
-// --- ARRETER ---
+// --- ARRÊTER ---
 stopButton.addEventListener("click", () => {
     if (!isRunning) return;
 
@@ -57,30 +57,36 @@ function updateSoundLevel() {
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(dataArray);
 
+    // Niveau sonore instantané (approximation)
     let sum = 0;
-    for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+    for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+    }
 
-    // Normalisation 0–50 dB
-    let instantLevel = Math.round((sum / dataArray.length) / 5);
-    instantLevel = Math.min(50, instantLevel);
+    // Normalisation pour une échelle 0 → 40 dB
+    // (calibration simple basée sur amplitude moyenne)
+    let instantLevel = Math.round((sum / dataArray.length) / 6);
+    instantLevel = Math.min(40, instantLevel);
 
+    // Ajout à l'historique
     soundHistory.push(instantLevel);
     if (soundHistory.length > MAX_HISTORY) soundHistory.shift();
 
-    const historyAverage =
+    // Calcul de la moyenne sur 10 secondes
+    const average =
         soundHistory.reduce((a, b) => a + b, 0) / soundHistory.length;
 
-    const avgLevel = Math.round(historyAverage);
+    const avgLevel = Math.round(average);
 
     // Mise à jour de l'affichage
     valueDisplay.textContent = avgLevel;
-    soundBar.style.width = `${(avgLevel / 50) * 100}%`;
+    soundBar.style.width = `${(avgLevel / 40) * 100}%`;
 
     // Couleur + emoji
-    if (avgLevel < 15) {
+    if (avgLevel < 12) {
         soundBar.style.background = "green";
         emojiDisplay.textContent = "😊";
-    } else if (avgLevel < 30) {
+    } else if (avgLevel < 25) {
         soundBar.style.background = "orange";
         emojiDisplay.textContent = "🤔";
     } else {
