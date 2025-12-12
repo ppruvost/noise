@@ -89,7 +89,7 @@ function measure() {
 
     // Emoji selon le niveau
     if (displayDb < 50) emoji.textContent = "😊";
-    else if (displayDb < 60) emoji.textContent = "😐";
+    else if (displayDb < 65) emoji.textContent = "😐";
     else emoji.textContent = "😣";
 
     requestAnimationFrame(measure);
