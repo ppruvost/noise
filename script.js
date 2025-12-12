@@ -81,7 +81,7 @@ function measure() {
 
     // Converti en 0–90 dB approx.
     let displayDb = Math.max(0, (db + 90));
-    valueDisp.textContent = displayDb.toFixed(0);
+    valueDisp.textContent = displayDb.toFixed(1);
 
     // Mise à jour barre
     let percent = Math.min(100, (displayDb / 90) * 100);
