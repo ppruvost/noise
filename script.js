@@ -39,8 +39,8 @@ function initChart() {
             scales: {
                 y: {
                     beginAtZero: false,
-                    min: 0,
-                    max: 90,
+                    min: 20,
+                    max: 85,
                 },
                 x: {
                     display: false // Masquer les labels de l'axe X pour le défilement
