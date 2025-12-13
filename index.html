@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sonomètre Web</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Ajout de Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -24,6 +26,9 @@
         <!-- Boutons -->
         <button id="startButton">Démarrer</button>
         <button id="stopButton">Arrêter</button>
+
+        <!-- Graphique -->
+        <canvas id="soundChart" width="400" height="200" style="margin-top: 20px;"></canvas>
     </div>
 
     <!-- Son d'alarme (optimisé iOS) -->
