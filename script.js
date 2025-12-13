@@ -5,7 +5,7 @@ let micStream;
 let running = false;
 let dbHistory = [];
 let dbValuesForAverage = []; // Tableau pour stocker les valeurs de dB sur 5 secondes
-let maxHistoryLength = 600; // 10 minutes * 6 valeurs/seconde (1 valeur toutes les 100ms)
+let maxHistoryLength = 600; // 10 minutes * 1 valeur/seconde (600 valeurs)
 let soundChart;
 let lastUpdateTime = 0;
 let averageUpdateInterval = 5000; // Intervalle de 5 secondes pour la moyenne
@@ -46,6 +46,9 @@ function initChart() {
                     display: false // Masquer les labels de l'axe X pour le défilement
                 }
             },
+            animation: {
+                duration: 0 // Désactive les animations pour un rendu fluide
+            }
         },
     });
 }
@@ -116,7 +119,9 @@ function stopMeter() {
         micStream.getTracks().forEach((t) => t.stop());
         micStream = null;
     }
-    if (audioContext) audioContext.close();
+    if (audioContext) {
+        audioContext.close();
+    }
 
     valueDisp.textContent = "0";
     soundBar.style.width = "0%";
@@ -158,7 +163,8 @@ function measure() {
     // Emoji selon le niveau
     if (displayDb < 50) emoji.textContent = "😊";
     else if (displayDb < 65) emoji.textContent = "😐";
-    else emoji.textContent = "😣";
+    else if (displayDb < 80) emoji.textContent = "😣";
+    else emoji.innerHTML = "😵 Port obligatoire 🎧"; // Emoji combiné pour un niveau sonore élevé avec protection auditive
 
     // Mise à jour du graphique
     updateChart(displayDb);
